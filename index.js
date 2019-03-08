@@ -1,9 +1,12 @@
-'use strict';
+"use strict";
 
-const Service = require('@cocacms/cocacms').Service;
-const qiniu = require('qiniu');
+const qiniu = require("qiniu");
 
-class MailService extends Service {
+class QiNiu {
+  constructor(ctx, setting) {
+    this.ctx = ctx;
+    this.setting = setting;
+  }
 
   async install() {
     return true;
@@ -16,33 +19,38 @@ class MailService extends Service {
   _upload(readableStream, filename, config) {
     return new Promise((resolve, reject) => {
       if (!config) {
-        reject(new Error('缺少七牛上传配置'));
+        reject(new Error("缺少七牛上传配置"));
       }
       const key = `${config.prefix}${filename}`;
       const mac = new qiniu.auth.digest.Mac(config.accessKey, config.secretKey);
       const options = {
-        scope: `${config.bucketName}:${key}`,
+        scope: `${config.bucketName}:${key}`
       };
       const putPolicy = new qiniu.rs.PutPolicy(options);
       const uploadToken = putPolicy.uploadToken(mac);
 
-      const qiniuConfig = config = new qiniu.conf.Config();
+      const qiniuConfig = (config = new qiniu.conf.Config());
       qiniuConfig.zone = qiniu.zone[config.zone];
       const formUploader = new qiniu.form_up.FormUploader(qiniuConfig);
       const putExtra = new qiniu.form_up.PutExtra();
-      formUploader.putStream(uploadToken, key, readableStream, putExtra, function(respErr,
-        respBody, respInfo) {
-        if (respErr) {
-          reject(respErr);
-          return;
-        }
+      formUploader.putStream(
+        uploadToken,
+        key,
+        readableStream,
+        putExtra,
+        function(respErr, respBody, respInfo) {
+          if (respErr) {
+            reject(respErr);
+            return;
+          }
 
-        if (respInfo.statusCode === 200) {
-          resolve(respBody);
-        } else {
-          reject(respBody);
+          if (respInfo.statusCode === 200) {
+            resolve(respBody);
+          } else {
+            reject(respBody);
+          }
         }
-      });
+      );
     });
   }
 
@@ -58,9 +66,9 @@ class MailService extends Service {
   async upload(config, stream, filename) {
     const result = await this._upload(stream, `${filename}`, config);
     return {
-      url: `${config.cdn}${result.key}`,
+      url: `${config.cdn}${result.key}`
     };
   }
 }
 
-module.exports = MailService;
+module.exports = QiNiu;
